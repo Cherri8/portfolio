@@ -1,12 +1,11 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import React, { useState, useEffect, useRef } from 'react'
+import { motion, AnimatePresence, useScroll, useSpring, useTransform } from 'framer-motion'
 import { 
   Github, 
   Linkedin, 
   Mail, 
-  ExternalLink, 
   Download, 
   Code, 
   Shield, 
@@ -18,11 +17,20 @@ import {
   Menu,
   X
 } from 'lucide-react'
+import Image from 'next/image'
+import profilePic from '../charan_image 1.jpg'
+import volleyballPic from '../Volleyball Image.jpg'
 
 export default function Portfolio() {
   const [activeSection, setActiveSection] = useState('hero')
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
+  const heroRef = useRef<HTMLElement | null>(null)
+  const trailLayerRef = useRef<HTMLDivElement | null>(null)
+  const starFieldRef = useRef<HTMLDivElement | null>(null)
+  // Scroll progress bar
+  const { scrollYProgress } = useScroll()
+  const scaleX = useSpring(scrollYProgress, { stiffness: 120, damping: 20, mass: 0.2 })
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -31,6 +39,51 @@ export default function Portfolio() {
     window.addEventListener('mousemove', handleMouseMove)
     return () => window.removeEventListener('mousemove', handleMouseMove)
   }, [])
+
+  // Create twinkling stars once
+  useEffect(() => {
+    if (!starFieldRef.current) return
+    const field = starFieldRef.current
+    if (field.childElementCount > 0) return
+    const stars = 60
+    for (let i = 0; i < stars; i++) {
+      const s = document.createElement('div')
+      s.className = 'star'
+      s.style.left = Math.random() * 100 + '%'
+      s.style.top = Math.random() * 100 + '%'
+      s.style.animationDelay = (Math.random() * 3).toFixed(2) + 's'
+      field.appendChild(s)
+    }
+  }, [])
+
+  // Cursor trail only within hero
+  useEffect(() => {
+    const el = heroRef.current
+    if (!el) return
+    const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (prefersReduced) return
+    const handler = (e: MouseEvent) => {
+      if (!trailLayerRef.current) return
+      const dot = document.createElement('span')
+      dot.className = 'trail-dot'
+      dot.style.left = e.clientX - el.getBoundingClientRect().left + 'px'
+      dot.style.top = e.clientY - el.getBoundingClientRect().top + 'px'
+      trailLayerRef.current.appendChild(dot)
+      setTimeout(() => dot.remove(), 700)
+    }
+    el.addEventListener('mousemove', handler)
+    return () => el.removeEventListener('mousemove', handler)
+  }, [])
+
+  // Stagger variants for Achievements
+  const achievContainer = {
+    hidden: { opacity: 0 },
+    show: { opacity: 1, transition: { staggerChildren: 0.15 } }
+  }
+  const achievItem = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0 }
+  }
 
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId)
@@ -41,6 +94,15 @@ export default function Portfolio() {
     }
   }
 
+  const downloadResume = () => {
+    // Open direct download link from Google Drive
+    window.open('https://drive.google.com/uc?export=download&id=1q6yHSDVGYQNrBA4u9c9TWG1cZ1vkH6hq', '_blank')
+  }
+
+  const openGitHub = (url: string) => {
+    window.open(url, '_blank')
+  }
+
   const navItems = [
     { id: 'hero', label: 'Home' },
     { id: 'about', label: 'About' },
@@ -49,11 +111,17 @@ export default function Portfolio() {
     { id: 'projects', label: 'Projects' },
     { id: 'certifications', label: 'Certifications' },
     { id: 'skills', label: 'Skills' },
+    { id: 'achievements', label: 'Achievements' },
     { id: 'contact', label: 'Contact' }
   ]
 
   return (
     <div className="min-h-screen bg-dark-900 text-white relative overflow-hidden">
+      {/* Scroll Progress Bar */}
+      <motion.div
+        className="fixed top-0 left-0 right-0 h-1 z-[60] origin-left"
+        style={{ scaleX, background: 'linear-gradient(90deg,#60a5fa,#2563eb)' }}
+      />
       {/* Animated Background */}
       <div className="fixed inset-0 z-0">
         <div className="absolute inset-0 gradient-bg opacity-20"></div>
@@ -65,6 +133,12 @@ export default function Portfolio() {
             transition: 'all 0.3s ease'
           }}
         ></div>
+        {/* Floating blob accents */}
+        <div className="blob blob-animate blob-slow w-[28rem] h-[28rem] bg-blue-700/40 -top-24 -left-24"></div>
+        <div className="blob blob-animate blob-fast w-[22rem] h-[22rem] bg-indigo-600/40 bottom-16 -right-20"></div>
+        <div className="blob blob-animate w-[18rem] h-[18rem] bg-cyan-600/30 top-1/3 right-1/3"></div>
+        {/* Star field */}
+        <div ref={starFieldRef} className="star-field"></div>
       </div>
 
       {/* Navigation */}
@@ -85,7 +159,7 @@ export default function Portfolio() {
                 <button
                   key={item.id}
                   onClick={() => scrollToSection(item.id)}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors nav-glow ${
                     activeSection === item.id 
                       ? 'text-primary-400 bg-primary-900/20' 
                       : 'text-gray-300 hover:text-primary-400'
@@ -132,7 +206,8 @@ export default function Portfolio() {
       </nav>
 
       {/* Hero Section */}
-      <section id="hero" className="min-h-screen flex items-center justify-center relative z-10 pt-20">
+      <section id="hero" ref={heroRef} className="min-h-screen flex items-center justify-center relative z-10 pt-20">
+        <div ref={trailLayerRef} className="absolute inset-0 pointer-events-none z-0"></div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -154,8 +229,7 @@ export default function Portfolio() {
             </div>
             <p className="text-lg text-gray-400 mb-12 max-w-3xl mx-auto">
               B.Tech Cyber Security student at Manipal Institute of Technology with hands-on experience 
-              in full-stack web development, AI/ML, and cybersecurity. Building impactful solutions 
-              that blend data, security, and user experience.
+              in full-stack web development, AI/ML, and cybersecurity practices.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -171,6 +245,7 @@ export default function Portfolio() {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
+                onClick={downloadResume}
                 className="px-8 py-4 border border-primary-600 hover:bg-primary-600/10 rounded-lg font-semibold transition-colors flex items-center gap-2"
               >
                 <Download size={20} />
@@ -210,7 +285,14 @@ export default function Portfolio() {
               transition={{ duration: 0.6 }}
             >
               <div className="w-80 h-80 mx-auto bg-gradient-to-br from-primary-500 to-primary-700 rounded-full flex items-center justify-center text-8xl font-bold">
-                CR
+                <Image
+                  src={profilePic}
+                  alt="Profile photo"
+                  width={320}
+                  height={320}
+                  className="rounded-full object-cover w-80 h-80"
+                  priority
+                />
               </div>
             </motion.div>
 
@@ -286,18 +368,16 @@ export default function Portfolio() {
                   <p className="text-xl text-gray-300 mb-2">
                     B.Tech in Computer Science (Cyber Security Specialization)
                   </p>
-                  <div className="flex flex-wrap items-center gap-4 mb-4">
-                    <div className="flex items-center gap-2 text-gray-400">
-                      <Calendar size={16} />
-                      <span>2021 - 2025</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-400">
-                      <MapPin size={16} />
-                      <span>Bengaluru, India</span>
-                    </div>
-                    <div className="px-3 py-1 bg-primary-600/20 text-primary-400 rounded-full text-sm">
-                      GPA: 7.52/10
-                    </div>
+                  <div className="flex items-center gap-2 text-gray-400 mb-4">
+                    <Calendar size={16} />
+                    <span>2021 - 2025</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-gray-400">
+                    <MapPin size={16} />
+                    <span>Bengaluru, India</span>
+                  </div>
+                  <div className="px-3 py-1 bg-primary-600/20 text-primary-400 rounded-full text-sm">
+                    GPA: 7.52/10
                   </div>
                   <div className="space-y-2">
                     <h4 className="font-semibold text-gray-200">Relevant Coursework:</h4>
@@ -445,18 +525,22 @@ export default function Portfolio() {
                 featuring commit activity analysis and contributor statistics.
               </p>
               <div className="flex flex-wrap gap-2 mb-6">
-                {['React', 'Node.js', 'Docker', 'Chart.js', 'Netlify'].map((tech) => (
-                  <span key={tech} className="px-3 py-1 bg-primary-600/20 text-primary-400 rounded-full text-sm">
+                {['React', 'Node.js', 'Docker', 'Chart.js', 'HTML/CSS'].map((tech) => (
+                  <motion.span
+                    key={tech}
+                    whileHover={{ y: -2, scale: 1.05 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="px-3 py-1 bg-primary-600/20 text-primary-400 rounded-full text-sm"
+                  >
                     {tech}
-                  </span>
+                  </motion.span>
                 ))}
               </div>
               <div className="flex gap-4">
-                <button className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors">
-                  <ExternalLink size={16} />
-                  Live Demo
-                </button>
-                <button className="flex items-center gap-2 px-4 py-2 border border-primary-600 hover:bg-primary-600/10 rounded-lg transition-colors">
+                <button 
+                  onClick={() => openGitHub('https://github.com/Cherri8/GitHub-Repository-Analyzer')}
+                  className="flex items-center gap-2 px-4 py-2 border border-primary-600 hover:bg-primary-600/10 rounded-lg transition-colors"
+                >
                   <Github size={16} />
                   Code
                 </button>
@@ -480,17 +564,21 @@ export default function Portfolio() {
               </p>
               <div className="flex flex-wrap gap-2 mb-6">
                 {['Python', 'Pandas', 'Flask', 'Scikit-learn', 'HTML/CSS'].map((tech) => (
-                  <span key={tech} className="px-3 py-1 bg-primary-600/20 text-primary-400 rounded-full text-sm">
+                  <motion.span
+                    key={tech}
+                    whileHover={{ y: -2, scale: 1.05 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="px-3 py-1 bg-primary-600/20 text-primary-400 rounded-full text-sm"
+                  >
                     {tech}
-                  </span>
+                  </motion.span>
                 ))}
               </div>
               <div className="flex gap-4">
-                <button className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors">
-                  <ExternalLink size={16} />
-                  Live Demo
-                </button>
-                <button className="flex items-center gap-2 px-4 py-2 border border-primary-600 hover:bg-primary-600/10 rounded-lg transition-colors">
+                <button 
+                  onClick={() => openGitHub('https://github.com/Cherri8/Learnoverse-YouTube-Video-Player-Demo')}
+                  className="flex items-center gap-2 px-4 py-2 border border-primary-600 hover:bg-primary-600/10 rounded-lg transition-colors"
+                >
                   <Github size={16} />
                   Code
                 </button>
@@ -514,17 +602,21 @@ export default function Portfolio() {
               </p>
               <div className="flex flex-wrap gap-2 mb-6">
                 {['Django', 'Dash', 'PostgreSQL', 'spaCy', 'NLP'].map((tech) => (
-                  <span key={tech} className="px-3 py-1 bg-primary-600/20 text-primary-400 rounded-full text-sm">
+                  <motion.span
+                    key={tech}
+                    whileHover={{ y: -2, scale: 1.05 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="px-3 py-1 bg-primary-600/20 text-primary-400 rounded-full text-sm"
+                  >
                     {tech}
-                  </span>
+                  </motion.span>
                 ))}
               </div>
               <div className="flex gap-4">
-                <button className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors">
-                  <ExternalLink size={16} />
-                  Live Demo
-                </button>
-                <button className="flex items-center gap-2 px-4 py-2 border border-primary-600 hover:bg-primary-600/10 rounded-lg transition-colors">
+                <button 
+                  onClick={() => openGitHub('https://github.com/Cherri8/Financial_Analytical')}
+                  className="flex items-center gap-2 px-4 py-2 border border-primary-600 hover:bg-primary-600/10 rounded-lg transition-colors"
+                >
                   <Github size={16} />
                   Code
                 </button>
@@ -548,23 +640,136 @@ export default function Portfolio() {
               </p>
               <div className="flex flex-wrap gap-2 mb-6">
                 {['Flask', 'Cryptography', 'TOTP', 'Security', 'Python'].map((tech) => (
-                  <span key={tech} className="px-3 py-1 bg-primary-600/20 text-primary-400 rounded-full text-sm">
+                  <motion.span
+                    key={tech}
+                    whileHover={{ y: -2, scale: 1.05 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="px-3 py-1 bg-primary-600/20 text-primary-400 rounded-full text-sm"
+                  >
                     {tech}
-                  </span>
+                  </motion.span>
                 ))}
               </div>
               <div className="flex gap-4">
-                <button className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors">
-                  <ExternalLink size={16} />
-                  Live Demo
-                </button>
-                <button className="flex items-center gap-2 px-4 py-2 border border-primary-600 hover:bg-primary-600/10 rounded-lg transition-colors">
+                <button 
+                  onClick={() => openGitHub('https://github.com/Cherri8/Encryption-with-MFA-Authentication')}
+                  className="flex items-center gap-2 px-4 py-2 border border-primary-600 hover:bg-primary-600/10 rounded-lg transition-colors"
+                >
                   <Github size={16} />
                   Code
                 </button>
               </div>
             </motion.div>
           </div>
+
+          {/* Additional Projects */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+            className="glass-effect rounded-2xl p-8 card-hover"
+          >
+            <div className="flex items-center gap-4 mb-4">
+              <Code className="text-primary-400" size={32} />
+              <h3 className="text-2xl font-bold text-primary-400">Open Browser Extension Scanner</h3>
+            </div>
+            <p className="text-gray-300 mb-4">
+              Security tool to analyze browser extensions for permissions and potential risks.
+            </p>
+            <div className="flex flex-wrap gap-2 mb-6">
+              {['Python', 'Security', 'CLI'].map((tech) => (
+                <motion.span
+                  key={tech}
+                  whileHover={{ y: -2, scale: 1.05 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="px-3 py-1 bg-primary-600/20 text-primary-400 rounded-full text-sm"
+                >
+                  {tech}
+                </motion.span>
+              ))}
+            </div>
+            <div className="flex gap-4">
+              <button 
+                onClick={() => openGitHub('https://github.com/Cherri8/open-browser-extension-scanner')}
+                className="flex items-center gap-2 px-4 py-2 border border-primary-600 hover:bg-primary-600/10 rounded-lg transition-colors"
+              >
+                <Github size={16} />
+                Code
+              </button>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.5 }}
+            className="glass-effect rounded-2xl p-8 card-hover"
+          >
+            <div className="flex items-center gap-4 mb-4">
+              <Shield className="text-primary-400" size={32} />
+              <h3 className="text-2xl font-bold text-primary-400">MITM Attack Implementation</h3>
+            </div>
+            <p className="text-gray-300 mb-4">
+              Educational project demonstrating Man-in-the-Middle attack techniques in a controlled lab setup.
+            </p>
+            <div className="flex flex-wrap gap-2 mb-6">
+              {['Networking', 'Security', 'Python'].map((tech) => (
+                <motion.span
+                  key={tech}
+                  whileHover={{ y: -2, scale: 1.05 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="px-3 py-1 bg-primary-600/20 text-primary-400 rounded-full text-sm"
+                >
+                  {tech}
+                </motion.span>
+              ))}
+            </div>
+            <div className="flex gap-4">
+              <button 
+                onClick={() => openGitHub('https://github.com/Cherri8/MITM_ATTACK_IMPLEMENTATION')}
+                className="flex items-center gap-2 px-4 py-2 border border-primary-600 hover:bg-primary-600/10 rounded-lg transition-colors"
+              >
+                <Github size={16} />
+                Code
+              </button>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.6 }}
+            className="glass-effect rounded-2xl p-8 card-hover"
+          >
+            <div className="flex items-center gap-4 mb-4">
+              <Code className="text-primary-400" size={32} />
+              <h3 className="text-2xl font-bold text-primary-400">SaaS Notes App</h3>
+            </div>
+            <p className="text-gray-300 mb-4">
+              A modern SaaS-style notes application with authentication and rich text editing.
+            </p>
+            <div className="flex flex-wrap gap-2 mb-6">
+              {['Next.js', 'TypeScript', 'Tailwind'].map((tech) => (
+                <motion.span
+                  key={tech}
+                  whileHover={{ y: -2, scale: 1.05 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="px-3 py-1 bg-primary-600/20 text-primary-400 rounded-full text-sm"
+                >
+                  {tech}
+                </motion.span>
+              ))}
+            </div>
+            <div className="flex gap-4">
+              <button 
+                onClick={() => openGitHub('https://github.com/Cherri8/SaaS-Notes-App')}
+                className="flex items-center gap-2 px-4 py-2 border border-primary-600 hover:bg-primary-600/10 rounded-lg transition-colors"
+              >
+                <Github size={16} />
+                Code
+              </button>
+            </div>
+          </motion.div>
         </div>
       </section>
 
@@ -655,11 +860,18 @@ export default function Portfolio() {
                 </div>
                 <h3 className="text-xl font-bold text-primary-400 mb-4">{skillGroup.category}</h3>
                 <div className="space-y-2">
-                  {skillGroup.skills.map((skill) => (
-                    <div key={skill} className="flex items-center gap-2">
+                  {skillGroup.skills.map((skill, i) => (
+                    <motion.div
+                      key={skill}
+                      initial={{ opacity: 0, x: -6 }}
+                      whileInView={{ opacity: 1, x: 0 }}
+                      viewport={{ once: true, amount: 0.4 }}
+                      transition={{ delay: i * 0.05, duration: 0.3 }}
+                      className="flex items-center gap-2"
+                    >
                       <div className="w-2 h-2 bg-primary-500 rounded-full"></div>
                       <span className="text-gray-300">{skill}</span>
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
               </motion.div>
@@ -698,6 +910,77 @@ export default function Portfolio() {
         </div>
       </section>
 
+      {/* Achievements Section */}
+      <section id="achievements" className="py-20 relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-gradient">Achievements</h2>
+            <div className="w-24 h-1 bg-primary-500 mx-auto"></div>
+          </motion.div>
+
+          <motion.div
+            variants={achievContainer}
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, amount: 0.3 }}
+            className="max-w-5xl mx-auto space-y-8"
+          >
+            {/* Volleyball */}
+            <motion.div variants={achievItem} className="glass-effect rounded-2xl p-8 card-hover">
+              <h3 className="text-2xl font-bold text-primary-400 mb-4">Volleyball Captain - MIT Bengaluru</h3>
+              <p className="text-gray-300 mb-6">
+                Led the college volleyball team as captain, organizing training sessions and
+                representing the institute in inter-collegiate tournaments.
+              </p>
+              <div className="relative w-full h-72 rounded-xl overflow-hidden">
+                <Image src={volleyballPic} alt="On the volleyball court" fill className="object-cover" />
+              </div>
+            </motion.div>
+
+            {/* CTF */}
+            <motion.div variants={achievItem} className="glass-effect rounded-2xl p-8 card-hover">
+              <h3 className="text-2xl font-bold text-primary-400 mb-4 flex items-center gap-2">
+                <Shield size={20} aria-hidden className="text-primary-400" />
+                <span>CTF Participation & Wins</span>
+              </h3>
+              <p className="text-gray-300">
+                Participated in cybersecurity Capture The Flag events focusing on web exploitation,
+                cryptography, and forensics. Secured top finishes in multiple college-level contests.
+              </p>
+            </motion.div>
+
+            {/* Hackathons */}
+            <motion.div variants={achievItem} className="glass-effect rounded-2xl p-8 card-hover">
+              <h3 className="text-2xl font-bold text-primary-400 mb-4 flex items-center gap-2">
+                <Code size={20} aria-hidden className="text-primary-400" />
+                <span>Hackathons</span>
+              </h3>
+              <p className="text-gray-300">
+                Built end-to-end prototypes under time pressure, collaborating with cross-functional
+                teams to solve real-world problems using full‑stack and AI/ML solutions.
+              </p>
+            </motion.div>
+
+            {/* Cricket */}
+            <motion.div variants={achievItem} className="glass-effect rounded-2xl p-8 card-hover">
+              <h3 className="text-2xl font-bold text-primary-400 mb-4 flex items-center gap-2">
+                <Award size={20} aria-hidden className="text-primary-400" />
+                <span>Cricket</span>
+              </h3>
+              <p className="text-gray-300">
+                Active member of college cricket events, contributing as an all‑rounder and promoting
+                teamwork, discipline, and sportsmanship.
+              </p>
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
       {/* Contact Section */}
       <section id="contact" className="py-20 relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -720,7 +1003,7 @@ export default function Portfolio() {
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
-              className="glass-effect rounded-xl p-8 card-hover text-center group"
+              className="glass-effect rounded-xl p-8 card-hover text-center group social-glow"
             >
               <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:animate-glow">
                 <Mail size={32} />
@@ -736,7 +1019,7 @@ export default function Portfolio() {
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
-              className="glass-effect rounded-xl p-8 card-hover text-center group"
+              className="glass-effect rounded-xl p-8 card-hover text-center group social-glow"
             >
               <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:animate-glow">
                 <Github size={32} />
@@ -752,7 +1035,7 @@ export default function Portfolio() {
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="glass-effect rounded-xl p-8 card-hover text-center group"
+              className="glass-effect rounded-xl p-8 card-hover text-center group social-glow"
             >
               <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:animate-glow">
                 <Linkedin size={32} />
@@ -769,16 +1052,16 @@ export default function Portfolio() {
             className="text-center mt-16"
           >
             <p className="text-gray-400 mb-4">
-              © 2024 Charan Reddy. Built with Next.js, TypeScript, and Tailwind CSS.
+              2024 Charan Reddy. Built with Next.js, TypeScript, and Tailwind CSS.
             </p>
             <div className="flex justify-center space-x-6">
-              <a href="mailto:charancherri733@gmail.com" className="text-gray-400 hover:text-primary-400 transition-colors">
+              <a href="mailto:charancherri733@gmail.com" className="text-gray-400 hover:text-primary-400 transition-colors social-glow">
                 <Mail size={24} />
               </a>
-              <a href="https://github.com/Cherri8" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-primary-400 transition-colors">
+              <a href="https://github.com/Cherri8" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-primary-400 transition-colors social-glow">
                 <Github size={24} />
               </a>
-              <a href="https://linkedin.com/in/t-charan-reddy-457662260" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-primary-400 transition-colors">
+              <a href="https://linkedin.com/in/t-charan-reddy-457662260" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-primary-400 transition-colors social-glow">
                 <Linkedin size={24} />
               </a>
             </div>
